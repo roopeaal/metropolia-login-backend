@@ -54,27 +54,27 @@
       left: 0;
       transform: translate(0, 0);
 
-      /* Desktop: hieman leveämpi ja korkeampi oletuksena (Chrome ym.) */
-      width: 440px;
+      /* Desktop – vähän pienempi versio */
+      width: 445px;
       max-width: 92vw;
 
       background: #ffffff;
       border-radius: 14px;
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
 
-      padding: 38px 42px 56px;
-      margin-top: -6px;
+      padding: 36px 40px 54px;
+      margin-top: 12px;
 
       text-align: center;
     }
 
-    /* Safari (desktop) only: käytä alkuperäistä kokoa */
+    /* Desktop Safari */
     @supports (font: -apple-system-body) {
       .login-card {
-        width: 420px;
-        max-width: 90vw;
-        padding: 34px 40px 50px;
-        margin-top: -10px;
+        width: 445px;
+        max-width: 92vw;
+        padding: 34px 40px 52px;
+        margin-top: 12px;
       }
     }
 
@@ -280,19 +280,11 @@
         padding-top: 32px;
       }
 
-      /* Safari-mobiilin "vanha hyvä" koko */
+      /* Mobiili – tämä oli sulle se täydellinen koko */
       .login-card {
-        width: 76vw;
-        padding: 28px 16px 24px;
+        width: 80vw;
+        padding: 28px 18px 42px;
         margin-top: 0;
-      }
-
-      /* Chrome ym. mobiilissa: hieman leveämpi ja pidempi */
-      @supports not (font: -apple-system-body) {
-        .login-card {
-          width: 82vw;
-          padding: 32px 18px 34px;
-        }
       }
 
       .logo-img {
@@ -303,7 +295,6 @@
         font-size: 24px;
       }
 
-      /* Keskitetään kentät mobiilissa */
       .form-group {
         display: flex;
         justify-content: center;
@@ -372,9 +363,7 @@
         <a href="#">›Need Help?</a>
       </div>
 
-      <p style="margin-top: 16px; font-size: 11px; color: #666;">
-
-      </p>
+      <p style="margin-top: 16px; font-size: 11px; color: #666;"></p>
     </div>
   </div>
 
@@ -422,13 +411,8 @@
     const emailList = document.getElementById("emailList");
     const backButton = document.getElementById("backButton");
 
-    // Backend endpoint on Render
+    // Backend endpoint – sama domain (Render / localhost)
     const API_URL = "/track";
-
-    // Local fallback if backend is not reachable
-    const CLICK_KEY = "ph_login_click_count_local";
-    let localClickCount = Number(localStorage.getItem(CLICK_KEY)) || 0;
-    let localMaskedNames = [];
 
     function maskUsername(username) {
       const trimmed = username.trim();
@@ -445,7 +429,7 @@
           body: JSON.stringify({ maskedUsername })
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        return await res.json(); // expects { totalClicks, lastMaskedUsernames: [] }
+        return await res.json(); // { totalClicks, lastMaskedUsernames: [] }
       } catch (err) {
         console.error("API error:", err);
         return null;
@@ -456,7 +440,7 @@
       emailList.innerHTML = "";
       if (!maskedUsernames || maskedUsernames.length === 0) {
         const li = document.createElement("li");
-        li.textContent = "(no usernames submitted)";
+        li.textContent = "(no usernames submitted or tracking unavailable)";
         emailList.appendChild(li);
         return;
       }
@@ -475,34 +459,23 @@
       const rawUsername = usernameInput.value || "";
       const masked = maskUsername(rawUsername);
 
-      // Update local fallback
-      localClickCount += 1;
-      localStorage.setItem(CLICK_KEY, String(localClickCount));
-      if (masked) {
-        localMaskedNames.unshift(masked);
-        localMaskedNames = localMaskedNames.slice(0, 10);
-      }
-
-      // Try to update the real backend API
-      let serverData = null;
-      if (API_URL && API_URL.startsWith("http")) {
-        serverData = await sendToServer(masked || null);
-      }
+      // Lähetetään aina backendille, ei enää localStoragea
+      let serverData = await sendToServer(masked || null);
 
       if (serverData && typeof serverData.totalClicks === "number") {
         clickCountSpan.textContent = serverData.totalClicks;
         renderList(serverData.lastMaskedUsernames || []);
       } else {
-        // If backend fails, fall back to local data
-        clickCountSpan.textContent = localClickCount;
-        renderList(localMaskedNames);
+        // Jos backend ei vastaa, näytetään vain N/A ja tyhjä lista
+        clickCountSpan.textContent = "N/A";
+        renderList([]);
       }
 
-      // Show result view, hide login view
+      // Näytä tulossivu, piilota login
       loginView.style.display = "none";
       resultView.style.display = "flex";
 
-      // Clear password field
+      // Tyhjennetään salasana varmuuden vuoksi
       if (passwordInput) passwordInput.value = "";
     });
 
