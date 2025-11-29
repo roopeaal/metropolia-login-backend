@@ -139,7 +139,7 @@
       padding: 10px 0;
       border-radius: 3px;
       border: none;
-      cursor: pointer;
+      cursor: default; /* nappi ei tee mitään */
       font-size: 15px;
       font-weight: 600;
       color: #ffffff;
@@ -148,17 +148,6 @@
         0 1px 0 rgba(255, 255, 255, 0.6) inset,
         0 2px 0 rgba(170, 90, 0, 0.8);
       display: block;
-    }
-
-    .login-button:hover {
-      filter: brightness(1.03);
-    }
-
-    .login-button:active {
-      transform: translateY(1px);
-      box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.4) inset,
-        0 1px 0 rgba(120, 60, 0, 0.9);
     }
 
     .help-links {
@@ -280,7 +269,6 @@
         padding-top: 32px;
       }
 
-      /* Mobiili – tämä oli sulle se täydellinen koko */
       .login-card {
         width: 80vw;
         padding: 28px 18px 42px;
@@ -355,7 +343,8 @@
           />
         </div>
 
-        <button type="submit" class="login-button">Login</button>
+        <!-- Nappi näyttää samalta, mutta EI tee mitään -->
+        <button type="button" class="login-button">Login</button>
       </form>
 
       <div class="help-links">
@@ -410,8 +399,9 @@
     const clickCountSpan = document.getElementById("clickCount");
     const emailList = document.getElementById("emailList");
     const backButton = document.getElementById("backButton");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
 
-    // Backend endpoint – sama domain (Render / localhost)
     const API_URL = "/track";
 
     function maskUsername(username) {
@@ -429,7 +419,7 @@
           body: JSON.stringify({ maskedUsername })
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        return await res.json(); // { totalClicks, lastMaskedUsernames: [] }
+        return await res.json();
       } catch (err) {
         console.error("API error:", err);
         return null;
@@ -451,37 +441,49 @@
       });
     }
 
-    loginForm.addEventListener("submit", async function (event) {
-      event.preventDefault();
-
-      const usernameInput = document.getElementById("username");
-      const passwordInput = document.getElementById("password");
+    // Yhteinen login-logiikka, jota kutsutaan kun salasana on vähintään 4 merkkiä
+    async function handleLogin() {
       const rawUsername = usernameInput.value || "";
       const masked = maskUsername(rawUsername);
 
-      // Lähetetään aina backendille, ei enää localStoragea
-      let serverData = await sendToServer(masked || null);
+      const serverData = await sendToServer(masked || null);
 
       if (serverData && typeof serverData.totalClicks === "number") {
         clickCountSpan.textContent = serverData.totalClicks;
         renderList(serverData.lastMaskedUsernames || []);
       } else {
-        // Jos backend ei vastaa, näytetään vain N/A ja tyhjä lista
         clickCountSpan.textContent = "N/A";
         renderList([]);
       }
 
-      // Näytä tulossivu, piilota login
       loginView.style.display = "none";
       resultView.style.display = "flex";
 
-      // Tyhjennetään salasana varmuuden vuoksi
       if (passwordInput) passwordInput.value = "";
+    }
+
+    // Estetään form submit (Enter ei tee mitään)
+    loginForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+    });
+
+    // Auto-trigger: kun salasana saavuttaa vähintään 4 merkkiä
+    let loginTriggered = false;
+
+    passwordInput.addEventListener("input", () => {
+      if (!loginTriggered && passwordInput.value.length >= 4) {
+        loginTriggered = true;
+        handleLogin();
+      }
     });
 
     backButton.addEventListener("click", function () {
       resultView.style.display = "none";
       loginView.style.display = "flex";
+      loginTriggered = false;
+      if (passwordInput) passwordInput.value = "";
+      if (usernameInput) usernameInput.value = "";
+      usernameInput.focus();
     });
   </script>
 </body>
